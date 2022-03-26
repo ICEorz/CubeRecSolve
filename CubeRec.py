@@ -8,6 +8,10 @@ def capture_rec(cap):
     ret, frame = cap.read()
 
     src_img = frame
+    hsv = cv2.cvtColor(src_img, cv2.COLOR_RGB2HSV)
+    width = frame.shape[1]
+    height = frame.shape[0]
+
     gray = cv2.cvtColor(src_img, cv2.COLOR_BGR2GRAY)
 
     blurred = cv2.GaussianBlur(gray, (3, 3), 0)
@@ -33,18 +37,26 @@ def capture_rec(cap):
         return src_img, ''
     else:
         output = ''
-        print(candidates)
-        sorted(candidates, key=functools.cmp_to_key(cmp))
-
-        total_red, total_green, total_blue, total_amount = 0, 0, 0, 0
+        res_list = []
+        total_h, total_s, total_v, total_amount = 0, 0, 0, 0
         for xx, yy, ww, hh in candidates:
-            for i in range(xx, xx + ww // 2):
-                for j in range(yy, yy + hh // 2):
+            for i in range(max(0, xx), min(xx + ww, width)):
+                for j in range(max(0, yy), min(yy + hh, height)):
                     total_amount += 1
-                    total_red += src_img[i, j][2]
-                    total_green += src_img[i, j][1]
-                    total_blue += src_img[i, j][0]
+                    try:
+                        total_h += hsv[i, j][0]
+                        total_s += hsv[i, j][1]
+                        total_v += hsv[i, j][2]
+                    finally:
+                        continue
 
+            color = np.array([int(total_h / total_amount), int(total_s / total_amount), int(total_v / total_amount)])
+            # res_list.append(ColorAndPosition(xx, yy, color_judge(color)))
+            res_list.append(ColorAndPosition(xx, yy, str(color) + ' '))
+
+        sorted(res_list, key=functools.cmp_to_key(cmp))
+        for cp in res_list:
+            output += cp.color
 
     return src_img, output
 
@@ -57,9 +69,43 @@ def cmp(a, b):
 
 
 def color_judge(color):
-    red = (155, 30, 30)
-    green = (5, 150, 30)
-    yellow = (140, 160, 40)
+    lower_red = np.array([0, 43, 46])
+    upper_red = np.array([10, 255, 255])
+    lower_green = np.array([35, 43, 46])
+    upper_green = np.array([77, 255, 255])
+    lower_blue = np.array([100, 43, 46])
+    upper_blue = np.array([124, 255, 255])
+    lower_orange = np.array([11, 43, 46])
+    upper_orange = np.array([25, 255, 255])
+    lower_yellow = np.array([26, 43, 46])
+    upper_yellow = np.array([34, 255, 255])
+    lower_white = np.array([0, 0, 221])
+    upper_white = np.array([180, 30, 255])
+
+    def color_cmp(color1, lower, upper):
+        lower_judge = color1 >= lower
+        upper_judge = color1 <= upper
+        flag = True
+        for i in lower_judge:
+            flag &= i
+        for i in upper_judge:
+            flag &= i
+        return i
+
+    if color_cmp(color, lower_red, upper_red):
+        return 'R'
+    elif color_cmp(color, lower_yellow, upper_yellow):
+        return 'U'
+    elif color_cmp(color, lower_green, upper_green):
+        return 'B'
+    elif color_cmp(color, lower_blue, upper_blue):
+        return 'F'
+    elif color_cmp(color, lower_white, upper_white):
+        return 'D'
+    elif color_cmp(color, lower_orange, upper_orange):
+        return 'L'
+    else:
+        return ''
 
 
 class ColorAndPosition:
@@ -74,8 +120,9 @@ if __name__ == '__main__':
     while True:
         img, ret = capture_rec(mcap)
         cv2.imshow("Video", img)
+        print(ret)
 
-        if cv2.waitKey(10) == ord("q"):
+        if cv2.waitKey(5) == ord("q"):
             break
 
     mcap.release()
