@@ -36,15 +36,15 @@ def capture_rec(cap):
     for contour in contours:
         approx = cv2.approxPolyDP(contour, 0.12 * cv2.arcLength(contour, True), True)
         area = cv2.contourArea(contour)
-        if len(approx) == 4 and 2500 < area < 5000:
+        if len(approx) == 4 and 2000 < area < 5000:
             xr, yr, wr, hr = cv2.boundingRect(contour)
             candidates.append((xr, yr, wr, hr))
 
     if len(candidates) != 9:
         for xx, yy, ww, hh in candidates:
             cv2.rectangle(roi, (xx, yy), (xx + ww, yy + hh), (255, 0, 0), 2)
-        cv2.rectangle(src_img, (margin_width, margin_height), (margin_width + roi_width, margin_height + roi_height), (0, 0, 0), 2)
-        return src_img, ''
+        draw_roi(src_img)
+        return dilated, ''
     else:
         output = ''
         res_list = []
@@ -55,13 +55,11 @@ def capture_rec(cap):
 
         res_list = sorted(res_list, key=functools.cmp_to_key(cmp))
         for cp in res_list:
-            # print(cp.x, cp.y, end='  ')
-        # print()
             output += cp.color
         for xx, yy, ww, hh in candidates:
             cv2.rectangle(roi, (xx, yy), (xx + ww, yy + hh), (255, 0, 0), 2)
-    cv2.rectangle(src_img, (margin_width, margin_height), (margin_width + roi_width, margin_height + roi_height), (0, 0, 0), 2)
-    return src_img, output
+    draw_roi(src_img)
+    return dilated, output
 
 
 def cmp(a, b):
@@ -75,7 +73,7 @@ def color_judge(color_img):
     lower_red = np.array([0, 43, 46])
     upper_red = np.array([10, 255, 255])
 
-    lower_green = np.array([35, 43, 46])
+    lower_green = np.array([50, 43, 46])
     upper_green = np.array([77, 255, 255])
 
     lower_blue = np.array([100, 43, 46])
@@ -90,46 +88,40 @@ def color_judge(color_img):
     lower_white = np.array([0, 0, 165])
     upper_white = np.array([182, 50, 255])
 
-    red_hsv = cv2.inRange(color_img, lower_red, upper_red)
-    green_hsv = cv2.inRange(color_img, lower_green, upper_green)
-    blue_hsv = cv2.inRange(color_img, lower_blue, upper_blue)
-    orange_hsv = cv2.inRange(color_img, lower_orange, upper_orange)
-    yellow_hsv = cv2.inRange(color_img, lower_yellow, upper_yellow)
-    white_hsv = cv2.inRange(color_img, lower_white, upper_white)
-
-    # cv2.imshow('red', red_hsv)
-    # cv2.imshow('green', green_hsv)
-    # cv2.imshow('blue', blue_hsv)
-    # cv2.imshow('orange', orange_hsv)
-    # cv2.imshow('yellow', yellow_hsv)
-    # cv2.imshow('white', white_hsv)
+    def color_fit(color, lower, upper):
+        flag = True
+        for j in lower <= color:
+            flag &= j
+        for j in color <= upper:
+            flag &= j
+        return flag
 
     twidth = color_img.shape[1]
     theight = color_img.shape[0]
-    total_red = ColorCnt('R', 0)
-    total_green = ColorCnt('B', 0)
-    total_blue = ColorCnt('F', 0)
-    total_orange = ColorCnt('L', 0)
-    total_yellow = ColorCnt('U', 0)
-    total_white = ColorCnt('D', 0)
+    total_cnt = 0
+    color = np.array([0, 0, 0])
 
-    for i in range(theight):
-        for j in range(twidth):
-            if red_hsv[i, j] == 255:
-                total_red.cnt += 1
-            if green_hsv[i, j] == 255:
-                total_green.cnt += 1
-            if blue_hsv[i, j] == 255:
-                total_blue.cnt += 1
-            if orange_hsv[i, j] == 255:
-                total_orange.cnt += 1
-            if yellow_hsv[i, j] == 255:
-                total_yellow.cnt += 1
-            if white_hsv[i, j] == 255:
-                total_white.cnt += 1
-    res_list = [total_red, total_blue, total_white, total_yellow, total_orange, total_green]
+    for i in range(theight // 4, theight * 3 // 4):
+        for j in range(twidth // 4, twidth * 3 // 4):
+            color += color_img[i, j]
+            total_cnt += 1
 
-    return sorted(res_list, key=lambda x: x.cnt, reverse=True)[0].name
+    res_color = color // total_cnt
+
+    if color_fit(res_color, lower_red, upper_red):
+        return 'R'
+    elif color_fit(res_color, lower_green, upper_green):
+        return 'B'
+    elif color_fit(res_color, lower_blue, upper_blue):
+        return 'F'
+    elif color_fit(res_color, lower_orange, upper_orange):
+        return 'L'
+    elif color_fit(res_color,lower_yellow, upper_yellow):
+        return 'U'
+    elif color_fit(res_color, lower_white, upper_white):
+        return 'D'
+    else:
+        return ''
 
 
 class ColorCnt:
@@ -143,6 +135,17 @@ class ColorAndPosition:
         self.x = x
         self.y = y
         self.color = color
+
+
+def draw_roi(img):
+    cv2.line(img, (170, 90), (210, 90), (255, 255, 255), 3)
+    cv2.line(img, (170, 90), (170, 130), (255, 255, 255), 3)
+    cv2.line(img, (470, 90), (430, 90), (255, 255, 255), 3)
+    cv2.line(img, (470, 90), (470, 130), (255, 255, 255), 3)
+    cv2.line(img, (170, 390), (210, 390), (255, 255, 255), 3)
+    cv2.line(img, (170, 390), (170, 350), (255, 255, 255), 3)
+    cv2.line(img, (470, 390), (430, 390), (255, 255, 255), 3)
+    cv2.line(img, (470, 390), (470, 350), (255, 255, 255), 3)
 
 
 if __name__ == '__main__':
