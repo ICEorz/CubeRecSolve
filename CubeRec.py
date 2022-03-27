@@ -22,12 +22,13 @@ def capture_rec(cap):
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
 
     blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+    blurred = cv2.GaussianBlur(blurred, (3, 3), 0)
     canny = cv2.Canny(blurred, 30, 50)
 
     kernel = np.ones((3, 3), np.uint8)
     dilated = cv2.dilate(canny, kernel, iterations=2)
     #
-    dilated = cv2.morphologyEx(dilated, cv2.MORPH_CLOSE, kernel, anchor=(2, 0), iterations=2)
+    dilated = cv2.morphologyEx(dilated, cv2.MORPH_CLOSE, kernel, anchor=(2, 0), iterations=3)
 
     contours, hierarchy = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -54,15 +55,15 @@ def capture_rec(cap):
                 for j in range(max(0, yy + hh // 4), min(yy + hh * 3 // 4, height)):
                     total_amount += 1
                     try:
-                        total_h += roi[i, j][0]
-                        total_s += roi[i, j][1]
-                        total_v += roi[i, j][2]
+                        total_h += hsv[j, i][0]
+                        total_s += hsv[j, i][1]
+                        total_v += hsv[j, i][2]
                     finally:
                         continue
 
             color = np.array([int(total_h / total_amount), int(total_s / total_amount), int(total_v / total_amount)])
-            # res_list.append(ColorAndPosition(xx, yy, color_judge(color)))
-            res_list.append(ColorAndPosition(xx, yy, str(color) + ' '))
+            res_list.append(ColorAndPosition(xx, yy, color_judge(roi[yy:yy + hh, xx:xx + ww])))
+            # res_list.append(ColorAndPosition(xx, yy, str(color) + ' '))
 
         sorted(res_list, key=functools.cmp_to_key(cmp))
         for cp in res_list:
@@ -80,44 +81,71 @@ def cmp(a, b):
         return a.y < b.y
 
 
-def color_judge(color):
+def color_judge(color_img):
     lower_red = np.array([0, 43, 46])
     upper_red = np.array([10, 255, 255])
+
     lower_green = np.array([35, 43, 46])
     upper_green = np.array([77, 255, 255])
+
     lower_blue = np.array([100, 43, 46])
     upper_blue = np.array([124, 255, 255])
+
     lower_orange = np.array([11, 43, 46])
     upper_orange = np.array([25, 255, 255])
+
     lower_yellow = np.array([26, 43, 46])
-    upper_yellow = np.array([34, 255, 255])
-    lower_white = np.array([0, 0, 221])
-    upper_white = np.array([180, 30, 255])
+    upper_yellow = np.array([50, 255, 255])
 
-    def color_cmp(color1, lower, upper):
-        lower_judge = color1 >= lower
-        upper_judge = color1 <= upper
-        flag = True
-        for i in lower_judge:
-            flag &= i
-        for i in upper_judge:
-            flag &= i
-        return i
+    lower_white = np.array([0, 0, 165])
+    upper_white = np.array([182, 50, 255])
 
-    if color_cmp(color, lower_red, upper_red):
-        return 'R'
-    elif color_cmp(color, lower_yellow, upper_yellow):
-        return 'U'
-    elif color_cmp(color, lower_green, upper_green):
-        return 'B'
-    elif color_cmp(color, lower_blue, upper_blue):
-        return 'F'
-    elif color_cmp(color, lower_white, upper_white):
-        return 'D'
-    elif color_cmp(color, lower_orange, upper_orange):
-        return 'L'
-    else:
-        return ''
+    red_hsv = cv2.inRange(color_img, lower_red, upper_red)
+    green_hsv = cv2.inRange(color_img, lower_green, upper_green)
+    blue_hsv = cv2.inRange(color_img, lower_blue, upper_blue)
+    orange_hsv = cv2.inRange(color_img, lower_orange, upper_orange)
+    yellow_hsv = cv2.inRange(color_img, lower_yellow, upper_yellow)
+    white_hsv = cv2.inRange(color_img, lower_white, upper_white)
+
+    cv2.imshow('red', red_hsv)
+    cv2.imshow('green', green_hsv)
+    cv2.imshow('blue', blue_hsv)
+    cv2.imshow('orange', orange_hsv)
+    cv2.imshow('yellow', yellow_hsv)
+    cv2.imshow('white', white_hsv)
+
+    width = color_img.shape[1]
+    height = color_img.shape[0]
+    total_red = ColorCnt('R', 0)
+    total_green = ColorCnt('B', 0)
+    total_blue = ColorCnt('F', 0)
+    total_orange = ColorCnt('L', 0)
+    total_yellow = ColorCnt('U', 0)
+    total_white = ColorCnt('D', 0)
+
+    for i in range(height):
+        for j in range(width):
+            if red_hsv[i, j] == 255:
+                total_red.cnt += 1
+            if green_hsv[i, j] == 255:
+                total_green.cnt += 1
+            if blue_hsv[i, j] == 255:
+                total_blue.cnt += 1
+            if orange_hsv[i, j] == 255:
+                total_orange.cnt += 1
+            if yellow_hsv[i, j] == 255:
+                total_yellow.cnt += 1
+            if white_hsv[i, j] == 255:
+                total_white.cnt += 1
+    res_list = [total_red, total_blue, total_white, total_yellow, total_orange, total_green]
+    sorted(res_list, key=lambda x: x.cnt, reverse=True)
+    return res_list[0].name
+
+
+class ColorCnt:
+    def __init__(self, name, cnt):
+        self.name = name
+        self.cnt = cnt
 
 
 class ColorAndPosition:
@@ -135,7 +163,7 @@ if __name__ == '__main__':
         if len(ret):
             print(ret)
 
-        if cv2.waitKey(5) == ord("q"):
+        if cv2.waitKey(1) == ord("q"):
             break
 
     mcap.release()
