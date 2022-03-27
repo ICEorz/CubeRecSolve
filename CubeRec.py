@@ -50,23 +50,13 @@ def capture_rec(cap):
         res_list = []
 
         for xx, yy, ww, hh in candidates:
-            total_h, total_s, total_v, total_amount = 0, 0, 0, 0
-            for i in range(max(0, xx + ww // 4), min(xx + ww * 3 // 4, width)):
-                for j in range(max(0, yy + hh // 4), min(yy + hh * 3 // 4, height)):
-                    total_amount += 1
-                    try:
-                        total_h += hsv[j, i][0]
-                        total_s += hsv[j, i][1]
-                        total_v += hsv[j, i][2]
-                    finally:
-                        continue
+            a = color_judge(hsv[yy:yy + hh, xx:xx + ww])
+            res_list.append(ColorAndPosition(xx, yy, a))
 
-            color = np.array([int(total_h / total_amount), int(total_s / total_amount), int(total_v / total_amount)])
-            res_list.append(ColorAndPosition(xx, yy, color_judge(roi[yy:yy + hh, xx:xx + ww])))
-            # res_list.append(ColorAndPosition(xx, yy, str(color) + ' '))
-
-        sorted(res_list, key=functools.cmp_to_key(cmp))
+        res_list = sorted(res_list, key=functools.cmp_to_key(cmp))
         for cp in res_list:
+            # print(cp.x, cp.y, end='  ')
+        # print()
             output += cp.color
         for xx, yy, ww, hh in candidates:
             cv2.rectangle(roi, (xx, yy), (xx + ww, yy + hh), (255, 0, 0), 2)
@@ -75,10 +65,10 @@ def capture_rec(cap):
 
 
 def cmp(a, b):
-    if abs(a.y - b.y) < 20:
-        return a.x < b.x
+    if abs(a.y - b.y) < 10:
+        return a.x - b.x
     else:
-        return a.y < b.y
+        return a.y - b.y
 
 
 def color_judge(color_img):
@@ -107,15 +97,15 @@ def color_judge(color_img):
     yellow_hsv = cv2.inRange(color_img, lower_yellow, upper_yellow)
     white_hsv = cv2.inRange(color_img, lower_white, upper_white)
 
-    cv2.imshow('red', red_hsv)
-    cv2.imshow('green', green_hsv)
-    cv2.imshow('blue', blue_hsv)
-    cv2.imshow('orange', orange_hsv)
-    cv2.imshow('yellow', yellow_hsv)
-    cv2.imshow('white', white_hsv)
+    # cv2.imshow('red', red_hsv)
+    # cv2.imshow('green', green_hsv)
+    # cv2.imshow('blue', blue_hsv)
+    # cv2.imshow('orange', orange_hsv)
+    # cv2.imshow('yellow', yellow_hsv)
+    # cv2.imshow('white', white_hsv)
 
-    width = color_img.shape[1]
-    height = color_img.shape[0]
+    twidth = color_img.shape[1]
+    theight = color_img.shape[0]
     total_red = ColorCnt('R', 0)
     total_green = ColorCnt('B', 0)
     total_blue = ColorCnt('F', 0)
@@ -123,8 +113,8 @@ def color_judge(color_img):
     total_yellow = ColorCnt('U', 0)
     total_white = ColorCnt('D', 0)
 
-    for i in range(height):
-        for j in range(width):
+    for i in range(theight):
+        for j in range(twidth):
             if red_hsv[i, j] == 255:
                 total_red.cnt += 1
             if green_hsv[i, j] == 255:
@@ -138,8 +128,8 @@ def color_judge(color_img):
             if white_hsv[i, j] == 255:
                 total_white.cnt += 1
     res_list = [total_red, total_blue, total_white, total_yellow, total_orange, total_green]
-    sorted(res_list, key=lambda x: x.cnt, reverse=True)
-    return res_list[0].name
+
+    return sorted(res_list, key=lambda x: x.cnt, reverse=True)[0].name
 
 
 class ColorCnt:
@@ -163,7 +153,7 @@ if __name__ == '__main__':
         if len(ret):
             print(ret)
 
-        if cv2.waitKey(1) == ord("q"):
+        if cv2.waitKey(5) == ord("q"):
             break
 
     mcap.release()
