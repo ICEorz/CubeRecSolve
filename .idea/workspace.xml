@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f986e13b-953d-4fe9-a5ed-1320f8789a0a" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/CubeRecColor.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/CubeRec.py" beforeDir="false" afterPath="$PROJECT_DIR$/CubeRec.py" afterDir="false" />
     </list>

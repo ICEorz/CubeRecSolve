@@ -8,14 +8,21 @@ def capture_rec(cap):
     ret, frame = cap.read()
 
     src_img = frame
-    hsv = cv2.cvtColor(src_img, cv2.COLOR_RGB2HSV)
+    roi_width = 300
+    roi_height = 300
     width = frame.shape[1]
     height = frame.shape[0]
+    margin_width = (width - roi_width) // 2
+    margin_height = (height - roi_height) // 2
+    roi = src_img[margin_height:margin_height + roi_height, margin_width: margin_width + roi_width]
+    width = roi.shape[1]
+    height = roi.shape[0]
+    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
-    gray = cv2.cvtColor(src_img, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
 
     blurred = cv2.GaussianBlur(gray, (3, 3), 0)
-    canny = cv2.Canny(blurred, 20, 40)
+    canny = cv2.Canny(blurred, 30, 50)
 
     kernel = np.ones((3, 3), np.uint8)
     dilated = cv2.dilate(canny, kernel, iterations=2)
@@ -26,27 +33,30 @@ def capture_rec(cap):
 
     candidates = []
     for contour in contours:
-        approx = cv2.approxPolyDP(contour, 0.13 * cv2.arcLength(contour, True), True)
+        approx = cv2.approxPolyDP(contour, 0.12 * cv2.arcLength(contour, True), True)
         area = cv2.contourArea(contour)
         if len(approx) == 4 and 2500 < area < 5000:
             xr, yr, wr, hr = cv2.boundingRect(contour)
             candidates.append((xr, yr, wr, hr))
-            cv2.rectangle(src_img, (xr, yr), (xr + wr, yr + hr), (255, 0, 0), 2)
 
     if len(candidates) != 9:
+        for xx, yy, ww, hh in candidates:
+            cv2.rectangle(roi, (xx, yy), (xx + ww, yy + hh), (255, 0, 0), 2)
+        cv2.rectangle(src_img, (margin_width, margin_height), (margin_width + roi_width, margin_height + roi_height), (0, 0, 0), 2)
         return src_img, ''
     else:
         output = ''
         res_list = []
-        total_h, total_s, total_v, total_amount = 0, 0, 0, 0
+
         for xx, yy, ww, hh in candidates:
-            for i in range(max(0, xx), min(xx + ww, width)):
-                for j in range(max(0, yy), min(yy + hh, height)):
+            total_h, total_s, total_v, total_amount = 0, 0, 0, 0
+            for i in range(max(0, xx + ww // 4), min(xx + ww * 3 // 4, width)):
+                for j in range(max(0, yy + hh // 4), min(yy + hh * 3 // 4, height)):
                     total_amount += 1
                     try:
-                        total_h += hsv[i, j][0]
-                        total_s += hsv[i, j][1]
-                        total_v += hsv[i, j][2]
+                        total_h += roi[i, j][0]
+                        total_s += roi[i, j][1]
+                        total_v += roi[i, j][2]
                     finally:
                         continue
 
@@ -57,7 +67,9 @@ def capture_rec(cap):
         sorted(res_list, key=functools.cmp_to_key(cmp))
         for cp in res_list:
             output += cp.color
-
+        for xx, yy, ww, hh in candidates:
+            cv2.rectangle(roi, (xx, yy), (xx + ww, yy + hh), (255, 0, 0), 2)
+    cv2.rectangle(src_img, (margin_width, margin_height), (margin_width + roi_width, margin_height + roi_height), (0, 0, 0), 2)
     return src_img, output
 
 
@@ -120,7 +132,8 @@ if __name__ == '__main__':
     while True:
         img, ret = capture_rec(mcap)
         cv2.imshow("Video", img)
-        print(ret)
+        if len(ret):
+            print(ret)
 
         if cv2.waitKey(5) == ord("q"):
             break
