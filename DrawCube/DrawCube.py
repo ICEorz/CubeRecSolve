@@ -1,8 +1,8 @@
 import tkinter as tk
 
 
-def cube_win():
-    cube_state = tk.Tk()
+def cube_win(cube=None):
+    cube_state = tk.Toplevel()
     cube_state.geometry('640x480')
 
     v = tk.IntVar()
@@ -15,12 +15,13 @@ def cube_win():
     select_frame.grid(row=0, column=0)
     cube_frame.grid(row=0, column=1)
 
-    cube = Cube()
+    if cube is None:
+        cube = Cube()
     cube.generate_frames(cube_frame)
-    
+
     def set_cube_color():
         cube.select_idx = v.get()
-        
+
     tk.Radiobutton(select_frame, image=pixel_image, variable=v, value=0, indicatoron=False, background='yellow',
                    selectcolor='yellow', width=20, height=20, compound='center', command=set_cube_color).pack()
     tk.Radiobutton(select_frame, image=pixel_image, variable=v, value=1, indicatoron=False, background='red',
@@ -90,7 +91,7 @@ class Cube:
             self.white_side[idx].config(background=color)
         elif name == 'orange':
             self.orange_side[idx].config(background=color)
-            
+
     def generate_frames(self, cube_frame):
         red_frame = tk.Frame(cube_frame)
         blue_frame = tk.Frame(cube_frame)
@@ -110,7 +111,7 @@ class Cube:
         green_frame.grid(row=1, column=3)
         yellow_frame.grid(row=0, column=1)
         white_frame.grid(row=2, column=1)
-    
+
 
 if __name__ == '__main__':
     cube_win()

@@ -1,16 +1,10 @@
 import functools
-import tkinter as tk
-from tkinter import *
-from PIL import Image, ImageTk
 import cv2
 import numpy as np
-import kociemba
 
 
 # rec the color and convert it to string
-def capture_rec(cap):
-    ret, frame = cap.read()
-
+def capture_rec(frame):
     src_img = frame
     roi_width = 300
     roi_height = 300
@@ -19,8 +13,6 @@ def capture_rec(cap):
     margin_width = (width - roi_width) // 2
     margin_height = (height - roi_height) // 2
     roi = src_img[margin_height:margin_height + roi_height, margin_width: margin_width + roi_width]
-    width = roi.shape[1]
-    height = roi.shape[0]
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
@@ -94,21 +86,22 @@ def color_judge(color_img):
     lower_white = np.array([0, 0, 165])
     upper_white = np.array([182, 50, 255])
 
-    def color_fit(color, lower, upper):
+    def color_fit(fitting_color: np.array, lower: np.array, upper: np.array):
         flag = True
-        for j in lower <= color:
+        for j in lower <= fitting_color:
             flag &= j
-        for j in color <= upper:
+        for j in fitting_color <= upper:
             flag &= j
         return flag
 
-    twidth = color_img.shape[1]
-    theight = color_img.shape[0]
+    # calculate the average hsv
+    t_width = color_img.shape[1]
+    t_height = color_img.shape[0]
     total_cnt = 0
     color = np.array([0, 0, 0])
 
-    for i in range(theight // 4, theight * 3 // 4):
-        for j in range(twidth // 4, twidth * 3 // 4):
+    for i in range(t_height // 4, t_height * 3 // 4):
+        for j in range(t_width // 4, t_width * 3 // 4):
             color += color_img[i, j]
             total_cnt += 1
 
@@ -122,7 +115,7 @@ def color_judge(color_img):
         return 'F'
     elif color_fit(res_color, lower_orange, upper_orange):
         return 'L'
-    elif color_fit(res_color,lower_yellow, upper_yellow):
+    elif color_fit(res_color, lower_yellow, upper_yellow):
         return 'U'
     elif color_fit(res_color, lower_white, upper_white):
         return 'D'
@@ -143,7 +136,7 @@ class ColorAndPosition:
         self.color = color
 
 
-# URFDLB
+# U R F D L B
 class Cube:
     def __init__(self):
         self.yellow_str = ''
@@ -169,37 +162,12 @@ class Cube:
 
     def state(self):
         res = ''
-        if len(self.yellow_str) == 0:
-            res += '0'
-        else:
-            res += '1'
-        if len(self.red_str) == 0:
-            res += '0'
-        else:
-            res += '1'
-        if len(self.blue_str) == 0:
-            res += '0'
-        else:
-            res += '1'
-        if len(self.white_str) == 0:
-            res += '0'
-        else:
-            res += '1'
-        if len(self.orange_str) == 0:
-            res += '0'
-        else:
-            res += '1'
-        if len(self.green_str) == 0:
-            res += '0'
-        else:
-            res += '1'
-        return res
-
-
-class NowStr:
-    def __init__(self, now_str):
-        self.now_str = now_str
-
+        res += '0' if len(self.yellow_str) else '1'
+        res += '0' if len(self.red_str) else '1'
+        res += '0' if len(self.blue_str) else '1'
+        res += '0' if len(self.white_str) else '1'
+        res += '0' if len(self.orange_str) else '1'
+        res += '0' if len(self.green_str) else '1'
 
 
 def draw_roi(img):
@@ -213,65 +181,5 @@ def draw_roi(img):
     cv2.line(img, (470, 390), (470, 350), (255, 255, 255), 3)
 
 
-def video_loop():
-    img, ret = capture_rec(mcap)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGBA)
-    nowstr.now_str = ret
-    current_img = Image.fromarray(img)
-    imgtk = ImageTk.PhotoImage(image=current_img)
-    panel.imgtk = imgtk
-    panel.config(image=imgtk)
-    root.after(1, video_loop)
-    return ret
-
-
-def take():
-    ori_str = nowstr.now_str
-    if len(ori_str) != 9:
-        return
-    if ori_str[4] == 'R':
-        cube.red_str = ori_str
-    elif ori_str[4] == 'L':
-        cube.orange_str = ori_str
-    elif ori_str[4] == 'U':
-        cube.yellow_str = ori_str
-    elif ori_str[4] == 'D':
-        cube.white_str = ori_str
-    elif ori_str[4] == 'B':
-        cube.green_str = ori_str
-    elif ori_str[4] == 'F':
-        cube.blue_str = ori_str
-    print(ori_str)
-
-
-def solve():
-    global cube
-    if cube.check():
-        print(cube.output_string())
-        print(kociemba.solve(cube.output_string()))
-        cube = Cube()
-    else:
-        print(cube.state())
-        print('rec unfinished')
-
-
 if __name__ == '__main__':
-    mcap = cv2.VideoCapture(0)
-    root = Tk()
-    root.title('CubeRecSolve')
-    cube = Cube()
-    nowstr = NowStr('')
-    panel = Label(root)
-    panel.pack(padx=10, pady=10)
-    root.config(cursor="arrow")
-    btn = Button(root, text='REC', command=take)
-    btn.pack(fill='both', expand=True, padx=10, pady=10)
-    btn1 = Button(root, text='cal', command=solve)
-    btn1.pack(fill='both', expand=True, padx=10, pady=10)
-
-    video_loop()
-
-    root.mainloop()
-
-    mcap.release()
-    cv2.destroyAllWindows()
+    pass
