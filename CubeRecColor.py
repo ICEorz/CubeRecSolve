@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 
+
 hmin, smin, vmin = 0, 0, 0
 hmax, smax, vmax = 255, 255, 255
 

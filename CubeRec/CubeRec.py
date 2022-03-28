@@ -1,9 +1,13 @@
 import functools
-
+import tkinter as tk
+from tkinter import *
+from PIL import Image, ImageTk
 import cv2
 import numpy as np
+import kociemba
 
 
+# rec the color and convert it to string
 def capture_rec(cap):
     ret, frame = cap.read()
 
@@ -44,7 +48,7 @@ def capture_rec(cap):
         for xx, yy, ww, hh in candidates:
             cv2.rectangle(roi, (xx, yy), (xx + ww, yy + hh), (255, 0, 0), 2)
         draw_roi(src_img)
-        return dilated, ''
+        return src_img, ''
     else:
         output = ''
         res_list = []
@@ -59,9 +63,10 @@ def capture_rec(cap):
         for xx, yy, ww, hh in candidates:
             cv2.rectangle(roi, (xx, yy), (xx + ww, yy + hh), (255, 0, 0), 2)
     draw_roi(src_img)
-    return dilated, output
+    return src_img, output
 
 
+# inorder to sort the rectangles
 def cmp(a, b):
     if abs(a.y - b.y) < 10:
         return a.x - b.x
@@ -69,6 +74,7 @@ def cmp(a, b):
         return a.y - b.y
 
 
+# judge which color it is
 def color_judge(color_img):
     lower_red = np.array([0, 43, 46])
     upper_red = np.array([10, 255, 255])
@@ -137,6 +143,65 @@ class ColorAndPosition:
         self.color = color
 
 
+# URFDLB
+class Cube:
+    def __init__(self):
+        self.yellow_str = ''
+        self.red_str = ''
+        self.blue_str = ''
+        self.white_str = ''
+        self.orange_str = ''
+        self.green_str = ''
+
+    def output_string(self):
+        return self.yellow_str + self.red_str + self.blue_str + self.white_str + self.orange_str + self.green_str
+
+    def check(self):
+        if len(self.yellow_str) != 0 and \
+            len(self.red_str) != 0 and \
+            len(self.blue_str) != 0 and \
+            len(self.green_str) != 0 and \
+            len(self.orange_str) != 0 and \
+                len(self.white_str) != 0:
+            return True
+        else:
+            return False
+
+    def state(self):
+        res = ''
+        if len(self.yellow_str) == 0:
+            res += '0'
+        else:
+            res += '1'
+        if len(self.red_str) == 0:
+            res += '0'
+        else:
+            res += '1'
+        if len(self.blue_str) == 0:
+            res += '0'
+        else:
+            res += '1'
+        if len(self.white_str) == 0:
+            res += '0'
+        else:
+            res += '1'
+        if len(self.orange_str) == 0:
+            res += '0'
+        else:
+            res += '1'
+        if len(self.green_str) == 0:
+            res += '0'
+        else:
+            res += '1'
+        return res
+
+
+class NowStr:
+    def __init__(self, now_str):
+        self.now_str = now_str
+
+
+
 def draw_roi(img):
     cv2.line(img, (170, 90), (210, 90), (255, 255, 255), 3)
     cv2.line(img, (170, 90), (170, 130), (255, 255, 255), 3)
@@ -148,16 +213,65 @@ def draw_roi(img):
     cv2.line(img, (470, 390), (470, 350), (255, 255, 255), 3)
 
 
+def video_loop():
+    img, ret = capture_rec(mcap)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGBA)
+    nowstr.now_str = ret
+    current_img = Image.fromarray(img)
+    imgtk = ImageTk.PhotoImage(image=current_img)
+    panel.imgtk = imgtk
+    panel.config(image=imgtk)
+    root.after(1, video_loop)
+    return ret
+
+
+def take():
+    ori_str = nowstr.now_str
+    if len(ori_str) != 9:
+        return
+    if ori_str[4] == 'R':
+        cube.red_str = ori_str
+    elif ori_str[4] == 'L':
+        cube.orange_str = ori_str
+    elif ori_str[4] == 'U':
+        cube.yellow_str = ori_str
+    elif ori_str[4] == 'D':
+        cube.white_str = ori_str
+    elif ori_str[4] == 'B':
+        cube.green_str = ori_str
+    elif ori_str[4] == 'F':
+        cube.blue_str = ori_str
+    print(ori_str)
+
+
+def solve():
+    global cube
+    if cube.check():
+        print(cube.output_string())
+        print(kociemba.solve(cube.output_string()))
+        cube = Cube()
+    else:
+        print(cube.state())
+        print('rec unfinished')
+
+
 if __name__ == '__main__':
     mcap = cv2.VideoCapture(0)
-    while True:
-        img, ret = capture_rec(mcap)
-        cv2.imshow("Video", img)
-        if len(ret):
-            print(ret)
+    root = Tk()
+    root.title('CubeRecSolve')
+    cube = Cube()
+    nowstr = NowStr('')
+    panel = Label(root)
+    panel.pack(padx=10, pady=10)
+    root.config(cursor="arrow")
+    btn = Button(root, text='REC', command=take)
+    btn.pack(fill='both', expand=True, padx=10, pady=10)
+    btn1 = Button(root, text='cal', command=solve)
+    btn1.pack(fill='both', expand=True, padx=10, pady=10)
 
-        if cv2.waitKey(5) == ord("q"):
-            break
+    video_loop()
+
+    root.mainloop()
 
     mcap.release()
     cv2.destroyAllWindows()
