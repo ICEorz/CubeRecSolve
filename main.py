@@ -4,6 +4,8 @@ import cv2
 from PIL import Image, ImageTk
 import CubeRec
 import DrawCube
+from tkinter import messagebox
+import tkinter.font as font
 
 
 class Cube(CubeRec.Cube, DrawCube.Cube):
@@ -41,18 +43,16 @@ class Cube(CubeRec.Cube, DrawCube.Cube):
             return
 
         for i in range(9):
-            self.select_idx = self.state_to_idx[color_string[4]]
+            self.select_idx = self.state_to_idx[color_string[i]]
             self.change_color(self.state_to_color[color_string[4]] + ' ' + str(i))
 
     def change_color(self, name_str):
-        print(name_str)
         super().change_color(name_str)
         name_str, idx = name_str.split()
         idx = int(idx)
 
         def convert(color_str):
             con_list = list(color_str)
-            print(con_list)
             if len(con_list) == 9:
                 con_list[idx] = self.state_list[self.select_idx]
             return ''.join(con_list)
@@ -70,6 +70,25 @@ class Cube(CubeRec.Cube, DrawCube.Cube):
         if name_str == 'yellow':
             convert(self.yellow_str)
 
+    def clear(self):
+        self.yellow_str = ''
+        self.red_str = ''
+        self.blue_str = ''
+        self.white_str = ''
+        self.green_str = ''
+        self.orange_str = ''
+
+        def clear_side(side):
+            for si in side:
+                si.config(background='white')
+
+        clear_side(self.red_side)
+        clear_side(self.yellow_side)
+        clear_side(self.blue_side)
+        clear_side(self.orange_side)
+        clear_side(self.green_side)
+        clear_side(self.white_side)
+
 
 def video_loop():
     img, ret = CubeRec.capture_rec(mframe)
@@ -86,31 +105,26 @@ def take():
     if len(ori_str) != 9:
         return
     if ori_str[4] == 'R':
-        mcube.red_str = ori_str
+        magic_cube.red_str = ori_str
     elif ori_str[4] == 'L':
-        mcube.orange_str = ori_str
+        magic_cube.orange_str = ori_str
     elif ori_str[4] == 'U':
-        mcube.yellow_str = ori_str
+        magic_cube.yellow_str = ori_str
     elif ori_str[4] == 'D':
-        mcube.white_str = ori_str
+        magic_cube.white_str = ori_str
     elif ori_str[4] == 'B':
-        mcube.green_str = ori_str
+        magic_cube.green_str = ori_str
     elif ori_str[4] == 'F':
-        mcube.blue_str = ori_str
-    print(ori_str)
-    mcube.color_to_frame(ori_str)
-
+        magic_cube.blue_str = ori_str
+    magic_cube.color_to_frame(ori_str)
 
 
 def solve():
-    global mcube
-    if mcube.check():
-        print(mcube.output_string())
-        print(kociemba.solve(mcube.output_string()))
-        mcube = Cube()
+    global magic_cube
+    if magic_cube.check():
+        messagebox.showinfo('Solution', kociemba.solve(magic_cube.output_string()))
     else:
-        print(mcube.state())
-        print('rec unfinished')
+        messagebox.showerror('Error', 'Recognition unfinished')
 
 
 class NowStr:
@@ -118,17 +132,11 @@ class NowStr:
         self.now_str = ss
 
 
-
-
-    # cube_state.mainloop()
-
-
 if __name__ == '__main__':
-
     mcap = cv2.VideoCapture(0)
     root = tk.Tk()
     root.title('CubeRecSolve')
-    mcube = Cube()
+    magic_cube = Cube()
     cube_state = tk.Toplevel()
     cube_state.geometry('640x480')
 
@@ -142,11 +150,11 @@ if __name__ == '__main__':
     select_frame.grid(row=0, column=0)
     cube_frame.grid(row=0, column=1)
 
-    mcube.generate_frames(cube_frame)
+    magic_cube.generate_frames(cube_frame)
 
 
     def set_cube_color():
-        mcube.select_idx = v.get()
+        magic_cube.select_idx = v.get()
 
 
     tk.Radiobutton(select_frame, image=pixel_image, variable=v, value=0, indicatoron=False, background='yellow',
@@ -162,6 +170,9 @@ if __name__ == '__main__':
     tk.Radiobutton(select_frame, image=pixel_image, variable=v, value=5, indicatoron=False, background='green',
                    selectcolor='green', width=20, height=20, compound='center', command=set_cube_color).pack()
 
+    clear_btn = tk.Button(select_frame, text='AC', command=magic_cube.clear, font=font.Font(size=15))
+    clear_btn.pack()
+
     now_str = NowStr('')
     panel = tk.Label(root)
     panel.pack(padx=10, pady=10)
@@ -171,13 +182,16 @@ if __name__ == '__main__':
     btn1 = tk.Button(root, text='cal', command=solve)
     btn1.pack(fill='both', expand=True, padx=10, pady=10)
 
-    while (True):
+    def on_closing():
+        if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            mcap.release()
+            cv2.destroyAllWindows()
+            root.destroy()
+
+    root.protocol('WM_DELETE_WINDOW', on_closing)
+
+    while True:
         st, mframe = mcap.read()
         video_loop()
         root.update()
         root.after(10)
-
-    root.mainloop()
-
-    mcap.release()
-    cv2.destroyAllWindows()

@@ -88,10 +88,10 @@ def color_judge(color_img):
 
     def color_fit(fitting_color: np.array, lower: np.array, upper: np.array):
         flag = True
-        for j in lower <= fitting_color:
-            flag &= j
-        for j in fitting_color <= upper:
-            flag &= j
+        for judge in lower <= fitting_color:
+            flag &= judge
+        for judge in fitting_color <= upper:
+            flag &= judge
         return flag
 
     # calculate the average hsv
