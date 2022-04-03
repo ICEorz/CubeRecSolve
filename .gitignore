@@ -1,3 +1,5 @@
 # ignore folder
 __pycache__/
 .idea/
+*.exe
+.vscode
