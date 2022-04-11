@@ -1,9 +1,11 @@
 import functools
 import cv2
 import numpy as np
+import tkinter as tk
+from PIL import Image, ImageTk
+import threading
 
-
-# rec the color and convert it to string
+# recognize the cube
 def capture_rec(frame):
     src_img = frame
     roi_width = 300
@@ -13,38 +15,50 @@ def capture_rec(frame):
     margin_width = (width - roi_width) // 2
     margin_height = (height - roi_height) // 2
     roi = src_img[margin_height:margin_height + roi_height, margin_width: margin_width + roi_width]
-    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
 
     blurred = cv2.GaussianBlur(gray, (3, 3), 0)
-    blurred = cv2.GaussianBlur(blurred, (3, 3), 0)
     canny = cv2.Canny(blurred, 30, 50)
 
     kernel = np.ones((3, 3), np.uint8)
     dilated = cv2.dilate(canny, kernel, iterations=2)
-    #
-    dilated = cv2.morphologyEx(dilated, cv2.MORPH_CLOSE, kernel, anchor=(2, 0), iterations=3)
+    
+    dilated2 = cv2.morphologyEx(dilated, cv2.MORPH_CLOSE, kernel, anchor=(2, 0), iterations=3)
 
-    contours, hierarchy = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(dilated2, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     candidates = []
     for contour in contours:
         approx = cv2.approxPolyDP(contour, 0.12 * cv2.arcLength(contour, True), True)
         area = cv2.contourArea(contour)
-        if len(approx) == 4 and 2000 < area < 5000:
+        if len(approx) == 4 and 2000 < area < 6000:
             xr, yr, wr, hr = cv2.boundingRect(contour)
             candidates.append((xr, yr, wr, hr))
+    
+    def draw_roi(img):
+        cv2.line(img, (170, 90), (210, 90), (255, 255, 255), 3)
+        cv2.line(img, (170, 90), (170, 130), (255, 255, 255), 3)
+        cv2.line(img, (470, 90), (430, 90), (255, 255, 255), 3)
+        cv2.line(img, (470, 90), (470, 130), (255, 255, 255), 3)
+        cv2.line(img, (170, 390), (210, 390), (255, 255, 255), 3)
+        cv2.line(img, (170, 390), (170, 350), (255, 255, 255), 3)
+        cv2.line(img, (470, 390), (430, 390), (255, 255, 255), 3)
+        cv2.line(img, (470, 390), (470, 350), (255, 255, 255), 3)
 
+    for xx, yy, ww, hh in candidates:
+        cv2.rectangle(roi, (xx, yy), (xx + ww, yy + hh), (255, 0, 0), 2)
+    draw_roi(src_img)
+
+    return src_img, candidates
+
+def color_rec(img, candidates):
     if len(candidates) != 9:
-        for xx, yy, ww, hh in candidates:
-            cv2.rectangle(roi, (xx, yy), (xx + ww, yy + hh), (255, 0, 0), 2)
-        draw_roi(src_img)
-        return src_img, ''
+        return ''
     else:
         output = ''
         res_list = []
-
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         for xx, yy, ww, hh in candidates:
             a = color_judge(hsv[yy:yy + hh, xx:xx + ww])
             res_list.append(ColorAndPosition(xx, yy, a))
@@ -52,15 +66,12 @@ def capture_rec(frame):
         res_list = sorted(res_list, key=functools.cmp_to_key(cmp))
         for cp in res_list:
             output += cp.color
-        for xx, yy, ww, hh in candidates:
-            cv2.rectangle(roi, (xx, yy), (xx + ww, yy + hh), (255, 0, 0), 2)
-    draw_roi(src_img)
-    return src_img, output
+    return output
 
 
 # inorder to sort the rectangles
 def cmp(a, b):
-    if abs(a.y - b.y) < 10:
+    if abs(a.y - b.y) < 15:
         return a.x - b.x
     else:
         return a.y - b.y
@@ -122,13 +133,6 @@ def color_judge(color_img):
     else:
         return ''
 
-
-class ColorCnt:
-    def __init__(self, name, cnt):
-        self.name = name
-        self.cnt = cnt
-
-
 class ColorAndPosition:
     def __init__(self, x, y, color):
         self.x = x
@@ -139,47 +143,51 @@ class ColorAndPosition:
 # U R F D L B
 class Cube:
     def __init__(self):
-        self.yellow_str = ''
-        self.red_str = ''
-        self.blue_str = ''
-        self.white_str = ''
-        self.orange_str = ''
-        self.green_str = ''
+        self.YELLOW = 0
+        self.RED = 1
+        self.BLUE = 2
+        self.WHITE = 3
+        self.ORANGE = 4
+        self.GREEN = 5
+        self.str_list = ['' for x in range(6)]
+
 
     def output_string(self):
-        return self.yellow_str + self.red_str + self.blue_str + self.white_str + self.orange_str + self.green_str
+        return self.str_list.join('')
 
     def check(self):
-        if len(self.yellow_str) != 0 and \
-            len(self.red_str) != 0 and \
-            len(self.blue_str) != 0 and \
-            len(self.green_str) != 0 and \
-            len(self.orange_str) != 0 and \
-                len(self.white_str) != 0:
+        if len(self.output_string()) != 0:
             return True
         else:
             return False
 
-    def state(self):
-        res = ''
-        res += '0' if len(self.yellow_str) else '1'
-        res += '0' if len(self.red_str) else '1'
-        res += '0' if len(self.blue_str) else '1'
-        res += '0' if len(self.white_str) else '1'
-        res += '0' if len(self.orange_str) else '1'
-        res += '0' if len(self.green_str) else '1'
+def rec():
+    print('taking')
 
 
-def draw_roi(img):
-    cv2.line(img, (170, 90), (210, 90), (255, 255, 255), 3)
-    cv2.line(img, (170, 90), (170, 130), (255, 255, 255), 3)
-    cv2.line(img, (470, 90), (430, 90), (255, 255, 255), 3)
-    cv2.line(img, (470, 90), (470, 130), (255, 255, 255), 3)
-    cv2.line(img, (170, 390), (210, 390), (255, 255, 255), 3)
-    cv2.line(img, (170, 390), (170, 350), (255, 255, 255), 3)
-    cv2.line(img, (470, 390), (430, 390), (255, 255, 255), 3)
-    cv2.line(img, (470, 390), (470, 350), (255, 255, 255), 3)
+def video_loop():
+    root = tk.Tk()
+    root.geometry('640x480')
+    panel = tk.Label(root)
+    panel.pack(padx=10, pady=10)
+    btn = tk.Button(root, text="rec", command=rec)
+    btn.pack(padx=10, pady=10)
+    cap = cv2.VideoCapture(0)
+    while True: 
+        ref, frame = cap.read()
+        cvimage, candidates = capture_rec(frame)
+        cvimage = cv2.cvtColor(cvimage, cv2.COLOR_BGR2RGBA)
+        current_img = Image.fromarray(cvimage)
+        img_tk = ImageTk.PhotoImage(image=current_img)
+        panel.img_tk = img_tk
+        panel.config(image=img_tk)
+        root.update()
+        root.after(1)
 
 
 if __name__ == '__main__':
-    pass
+    video_thread = threading.Thread(target=video_loop)
+    video_thread.start()
+    # video_loop()
+
+
